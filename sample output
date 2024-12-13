@@ -1,0 +1,4 @@
+Imagine the webcam feed overlayed with bounding boxes and labels. Here's an example of what the frame would look like:
+Object Detected  	Confidence	Position (Bounding Box Coordinates)
+Person	                0.95	         (50, 100, 200, 300)
+Dog	                    0.87	         (300, 400, 450, 550) 
