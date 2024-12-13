@@ -1,0 +1,91 @@
+pip install tensorflow opencv-python matplotlib
+import cv2
+import numpy as np
+import tensorflow as tf
+
+# Load the TFLite model
+interpreter = tf.lite.Interpreter(model_path="ssd_mobilenet_v2.tflite")
+interpreter.allocate_tensors()
+
+# Get model input and output details
+input_details = interpreter.get_input_details()
+output_details = interpreter.get_output_details()
+
+# Load label map (class names)
+with open("label_map.txt", "r") as f:
+    class_names = f.read().splitlines()
+
+# Function to preprocess the frame for TFLite model
+def preprocess_frame(frame):
+    input_shape = input_details[0]['shape'][1:3]
+    resized_frame = cv2.resize(frame, (input_shape[1], input_shape[0]))
+    input_tensor = np.expand_dims(resized_frame, axis=0).astype(np.float32)
+    return input_tensor
+
+# Function to draw bounding boxes and labels
+def draw_boxes(frame, detections, class_names):
+    for detection in detections:
+        box, class_id, score = detection
+        if score > 0.5:  # Confidence threshold
+            ymin, xmin, ymax, xmax = box
+            h, w, _ = frame.shape
+            xmin, xmax, ymin, ymax = int(xmin * w), int(xmax * w), int(ymin * h), int(ymax * h)
+            
+            # Draw bounding box
+            cv2.rectangle(frame, (xmin, ymin), (xmax, ymax), (0, 255, 0), 2)
+            label = f"{class_names[class_id]}: {score:.2f}"
+            
+            # Add label
+            cv2.putText(frame, label, (xmin, ymin - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+    return frame
+
+# Function to process detections
+def get_detections(output_data, frame_shape):
+    boxes = output_data[0][0]
+    class_ids = output_data[1][0]
+    scores = output_data[2][0]
+    detections = []
+
+    for i in range(len(scores)):
+        if scores[i] > 0.5:  # Confidence threshold
+            box = boxes[i]
+            class_id = int(class_ids[i])
+            score = scores[i]
+            detections.append((box, class_id, score))
+    return detections
+
+# Initialize video capture
+cap = cv2.VideoCapture(0)  # Use webcam
+while True:
+    ret, frame = cap.read()
+    if not ret:
+        break
+
+    # Preprocess frame
+    input_tensor = preprocess_frame(frame)
+    interpreter.set_tensor(input_details[0]['index'], input_tensor)
+    interpreter.invoke()
+
+    # Get model output
+    output_data = [interpreter.get_tensor(output['index']) for output in output_details]
+    detections = get_detections(output_data, frame.shape)
+
+    # Draw boxes
+    frame = draw_boxes(frame, detections, class_names)
+
+    # Display the frame
+    cv2.imshow("Real-Time Object Detection", frame)
+
+    # Break loop on 'q' key
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break
+
+cap.release()
+cv2.destroyAllWindows()
+person
+bicycle
+car
+motorcycle
+airplane
+bus
+...
